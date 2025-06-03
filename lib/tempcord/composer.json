@@ -1,0 +1,22 @@
+{
+    "name": "mikield/tempcord",
+    "description": "Tempcord - a Tempest Discord Framework",
+    "type": "library",
+    "require": {
+        "team-reflex/discord-php": "dev-master",
+        "tempest/framework": "v1.0.0-beta.1"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Tempcord\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Vladyslav G.",
+            "email": "hello@mikield.rocks"
+        }
+    ],
+    "minimum-stability": "dev"
+}
