@@ -5,19 +5,43 @@ namespace Tempcord\Attributes\SlashCommands;
 use Attribute;
 use Discord\Builders\CommandBuilder;
 use Discord\Discord;
-use Discord\Parts\Interactions\Command\Option;
+use React\Promise\PromiseInterface;
+use RuntimeException;
 use Tempest\Reflection\ClassReflector;
+use function React\Async\await;
+use function Tempest\get;
 use function Tempest\Support\str;
 
 #[Attribute]
 final class Command
 {
-    public string $className {
+    /**
+     * A Singleton instance of the command
+     * @var object|null
+     */
+    private static ?object $_instance = null;
+
+    /**
+     * Computed getter for Singleton instance
+     * @var object
+     */
+    public object $instance {
         get {
-            return $this->reflector->getName();
+            if (self::$_instance === null) {
+                self::$_instance = get($this->reflector->getName());
+            }
+
+            return $this::$_instance;
         }
     }
 
+    /**
+     * Computed getter for command name
+     *
+     * If none command is provided - it will take name from the classname
+     *
+     * @var string
+     */
     public string $name {
         get {
             if ($this->command) {
@@ -34,19 +58,24 @@ final class Command
         }
     }
 
-    public bool $hasRunMethod {
-        get {
-            return $this->reflector->getReflection()->hasMethod('run');
-        }
-    }
-
-    /** @var array<Option> */
+    /**
+     * Options mapper
+     *
+     * Maps all command options using Reflection API
+     *
+     * @var Option[]
+     */
     public array $options {
         get {
             $options = [];
             foreach ($this->reflector->getProperties() as $property) {
                 if ($property->hasAttribute(Option::class)) {
                     $option = $property->getAttribute(Option::class);
+
+                    if (!$option) {
+                        continue;
+                    }
+
                     $option->setReflector($property->getReflection());
                     $options[$property->getName()] = $option;
                 }
@@ -75,13 +104,14 @@ final class Command
         if (!empty($this->options)) {
             foreach ($this->options as $option) {
                 $command = $command->addOption(
-                    new Option(
+                    new \Discord\Parts\Interactions\Command\Option(
                         discord: $discord,
                         attributes: [
                             'name' => $option->getName(),
                             'description' => $option->getDescription(),
                             'type' => $option->getType(),
                             'required' => $option->isRequired(),
+                            'autocomplete' => !is_null($option->getAutocomplete()),
                         ]
                     )
                 );
@@ -95,5 +125,31 @@ final class Command
     {
         $this->reflector = $reflector;
         return $this;
+    }
+
+    public function handle(\Discord\Parts\Interactions\Interaction $interaction): PromiseInterface
+    {
+        if (!$this->reflector->getReflection()->hasMethod('__invoke')) {
+            throw new RuntimeException('Command [' . $this->name . '] does not have a method __invoke() method.');
+        }
+
+        return call_user_func([$this->instance, '__invoke'], $interaction);
+    }
+
+    public function mapOptions(\Discord\Helpers\Collection $params, Discord $discord): void
+    {
+        $params->map(function (\Discord\Parts\Interactions\Request\Option $option) use ($discord) {
+            if (array_key_exists($option->name, $this->options)) {
+
+                $value = match ($option->type) {
+                    \Discord\Parts\Interactions\Command\Option::USER => await($discord->users->fetch($option->value)),
+                    \Discord\Parts\Interactions\Command\Option::CHANNEL => $discord->getChannel($option->value),
+                    \Discord\Parts\Interactions\Command\Option::ROLE => throw new RuntimeException('Not implemented'),
+                    default => $option->value,
+                };
+
+                $this->options[$option->name]->set($this->instance, $value);
+            }
+        });
     }
 }

@@ -3,12 +3,14 @@
 namespace Tempcord\ConsoleCommands;
 
 use Tempcord\Tempcord;
+use Tempest\Console\Console;
 use Tempest\Console\ConsoleCommand;
 
 final readonly class BotCommand
 {
     public function __construct(
         private Tempcord $tempcord,
+        private Console  $console
     )
     {
     }
@@ -16,7 +18,7 @@ final readonly class BotCommand
     #[ConsoleCommand]
     public function boot(): void
     {
-        //@TODO: add verbosity lvl and pass it somehow to logger
+        $this->console->header('Booting up...');
         $this->tempcord->boot();
     }
 }

@@ -3,8 +3,12 @@
 namespace Tempcord\Attributes\SlashCommands;
 
 use Attribute;
+use Discord\Parts\Channel\Channel;
+use Discord\Parts\Guild\Role;
+use Discord\Parts\User\User;
 use ReflectionNamedType;
 use ReflectionProperty;
+use Tempcord\Contracts\Autocomplete;
 use function Tempest\Support\str;
 
 #[Attribute]
@@ -13,9 +17,10 @@ final readonly class Option
     private ReflectionProperty $reflector;
 
     public function __construct(
-        private string  $description,
-        private ?string $name = null,
-        private bool    $required = false,
+        private string        $description,
+        private ?string       $name = null,
+        private bool          $required = false,
+        private ?Autocomplete $autocomplete = null,
     )
     {
     }
@@ -50,6 +55,9 @@ final readonly class Option
             'int' => \Discord\Parts\Interactions\Command\Option::INTEGER,
             'float' => \Discord\Parts\Interactions\Command\Option::NUMBER,
             'bool' => \Discord\Parts\Interactions\Command\Option::BOOLEAN,
+            User::class => \Discord\Parts\Interactions\Command\Option::USER,
+            Channel::class => \Discord\Parts\Interactions\Command\Option::CHANNEL,
+            Role::class => \Discord\Parts\Interactions\Command\Option::ROLE,
             //@todo Add more options: UserResolvable,ChannelResolvable,RoleResolvable,Mentionable
             default => throw new \LogicException('Command option type not supported'),
         };
@@ -65,8 +73,13 @@ final readonly class Option
         $this->reflector = $reflector;
     }
 
-    public function set(object $class, float|bool|int|string|null $value): void
+    public function set(object $class, float|bool|int|string|null|User|Channel $value): void
     {
         $this->reflector->setRawValue($class, $value);
+    }
+
+    public function getAutocomplete(): ?Autocomplete
+    {
+        return $this->autocomplete;
     }
 }

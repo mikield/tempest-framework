@@ -11,7 +11,7 @@ final class Tempcord
     public bool $booted = false;
 
     public function __construct(
-        private readonly Discord $discord,
+        public readonly Discord  $discord,
         public CommandRegistry   $commandRegistry,
         private readonly Console $console,
     )
@@ -20,6 +20,13 @@ final class Tempcord
 
     public function boot(): void
     {
+        //@todo add ContextMenu handlers and Discovers
+
+        //@todo add Events discovery and handling
+
+        //@todo provide some functionality for Jobs (Tasks)
+
+        //@todo Maybe add some fast HTTP server
         $this->discord->on('init', function (Discord $discord) {
             $this->booted = true;
             $this->commandRegistry->register($this->console, $discord);
