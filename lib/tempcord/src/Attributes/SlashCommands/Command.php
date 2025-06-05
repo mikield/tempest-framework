@@ -103,6 +103,7 @@ final class Command
 
     public function __construct(
         public ?string $command = null,
+        //@todo Require description only if type is set CHAT_INPUT
         public ?string $description = null,
         public ?int    $guildId = null,
         public bool    $isNsfw = false,

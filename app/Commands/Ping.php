@@ -19,9 +19,14 @@ use Tempcord\Helpers\MessageBuilder;
 )]
 final class Ping
 {
-    //@todo AdminOnlyCommand
+    //@todo AdminOnlyCommand (command middleware based, we need to add middlewares to Command
+    //  Something like: AdminOnlyCommand(admin_id: - optional, take from config if not set)
+    //  Middlewares will allow us to check other stuff before executing the command
 
-    //@todo add computed (property hooks) sub commands
+    //@todo add support from sub commands
+    //  The easies way - mark command as SubCommand and every option as subcommand options,
+    //  mapped to own commands (by class-name).
+    //  Something like: Option(type: SubCommand(command: SubCommandClass::class))
 
     #[Option(
         description: 'Provide users name',

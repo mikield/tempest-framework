@@ -72,6 +72,8 @@ final class CommandRegistry
 
                         $choices = is_array($value) ? $value : [$value];
 
+                        $choices = array_slice($choices, 0, 25);
+
                         if ($option->focused && $value) {
                             return array_map(function ($choice, $key) use ($discord, $choices) {
                                 if ($choice instanceof Choice) {
