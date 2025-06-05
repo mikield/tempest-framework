@@ -58,7 +58,7 @@ final readonly class Option
             User::class => \Discord\Parts\Interactions\Command\Option::USER,
             Channel::class => \Discord\Parts\Interactions\Command\Option::CHANNEL,
             Role::class => \Discord\Parts\Interactions\Command\Option::ROLE,
-            //@todo Add more options: UserResolvable,ChannelResolvable,RoleResolvable,Mentionable
+            //@todo Add more options: Mentionable
             default => throw new \LogicException('Command option type not supported'),
         };
     }

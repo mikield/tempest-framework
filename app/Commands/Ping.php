@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace App\Commands;
 
 use Discord\Builders\Components\Button;
-use Discord\Parts\Channel\Channel;
 use Discord\Parts\Channel\Message;
 use Discord\Parts\Interactions\Interaction;
-use Discord\Parts\User\User;
 use Exception;
 use React\Promise\PromiseInterface;
 use Tempcord\ArrayAutocomplete;
@@ -21,14 +19,9 @@ use Tempcord\MessageBuilder;
 )]
 final class Ping
 {
-
-    //@todo add autocomplete functionality (property hooks?)
-
     //@todo add command permissions
 
     //@todo AdminOnlyCommand
-
-    //@todo add guild_id option to register command only in 1 guild
 
     //@todo add computed (property hooks) sub commands
 

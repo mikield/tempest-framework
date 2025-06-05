@@ -11,7 +11,6 @@ use Tempcord\Attributes\SlashCommands\Command;
 use Tempest\Console\Console;
 use Tempest\Container\Singleton;
 use Throwable;
-use function Tempest\map;
 
 #[Singleton]
 final class CommandRegistry

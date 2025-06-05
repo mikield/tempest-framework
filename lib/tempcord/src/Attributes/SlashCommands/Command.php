@@ -5,11 +5,14 @@ namespace Tempcord\Attributes\SlashCommands;
 use Attribute;
 use Discord\Builders\CommandBuilder;
 use Discord\Discord;
+use Discord\Parts\Permissions\RolePermission;
 use React\Promise\PromiseInterface;
 use RuntimeException;
 use Tempest\Reflection\ClassReflector;
 use function React\Async\await;
 use function Tempest\get;
+use function Tempest\Support\Arr\flat_map;
+use function Tempest\Support\Arr\map_with_keys;
 use function Tempest\Support\str;
 
 #[Attribute]
@@ -84,11 +87,27 @@ final class Command
         }
     }
 
+    private ?\Closure $defaultRolePermissions {
+        get {
+            if (!$this->permissions) {
+                return null;
+            }
+            return fn(Discord $discord) => new RolePermission($discord, map_with_keys(
+                $this->permissions,
+                fn($permission) => [$permission => true]
+            ))->__toString();
+        }
+    }
+
     private readonly ClassReflector $reflector;
 
     public function __construct(
         public ?string $command = null,
         public ?string $description = null,
+        public ?int    $guildId = null,
+        public bool    $isNsfw = false,
+        public array   $permissions = [],
+        public bool    $directMessage = true,
         public int     $type = \Discord\Parts\Interactions\Command\Command::CHAT_INPUT
     )
     {
@@ -99,6 +118,10 @@ final class Command
         $command = CommandBuilder::new()
             ->setName($this->name)
             ->setDescription($this->description)
+            ->setGuildId($this->guildId)
+            ->setNsfw($this->isNsfw)
+            ->setDefaultMemberPermissions($this->defaultRolePermissions ? ($this->defaultRolePermissions)($discord) : null)
+            ->setDmPermission($this->directMessage)
             ->setType($this->type);
 
         if (!empty($this->options)) {
