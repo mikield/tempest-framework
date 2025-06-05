@@ -1,6 +1,6 @@
 <?php
 
-namespace Tempcord;
+namespace Tempcord\Helpers;
 
 use Discord\Builders\Components\ActionRow;
 use Discord\Builders\Components\Button;
@@ -18,9 +18,8 @@ use Discord\Parts\Interactions\Interaction;
 use Exception;
 use React\Promise\PromiseInterface;
 use RuntimeException;
+use Tempcord\Tempcord;
 use Throwable;
-
-use function Tempest\get;
 use function Tempest\Support\Arr\chunk;
 use function Tempest\Support\Arr\filter;
 use function Tempest\Support\Arr\map_iterable;

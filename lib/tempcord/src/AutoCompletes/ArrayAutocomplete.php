@@ -1,6 +1,6 @@
 <?php
 
-namespace Tempcord;
+namespace Tempcord\AutoCompletes;
 
 use Discord\Parts\Interactions\Interaction;
 use Tempcord\Contracts\Autocomplete;

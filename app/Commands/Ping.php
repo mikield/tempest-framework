@@ -9,18 +9,16 @@ use Discord\Parts\Channel\Message;
 use Discord\Parts\Interactions\Interaction;
 use Exception;
 use React\Promise\PromiseInterface;
-use Tempcord\ArrayAutocomplete;
 use Tempcord\Attributes\SlashCommands\Command;
 use Tempcord\Attributes\SlashCommands\Option;
-use Tempcord\MessageBuilder;
+use Tempcord\AutoCompletes\ArrayAutocomplete;
+use Tempcord\Helpers\MessageBuilder;
 
 #[Command(
     description: 'Ping? Pong!',
 )]
 final class Ping
 {
-    //@todo add command permissions
-
     //@todo AdminOnlyCommand
 
     //@todo add computed (property hooks) sub commands
