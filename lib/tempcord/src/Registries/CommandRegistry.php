@@ -50,7 +50,7 @@ final class CommandRegistry
             $discord->listenCommand(
                 $name,
                 function (Interaction $interaction, Collection $params) use ($command, $console, $discord) {
-                    $command->mapOptions($params, $discord);
+                    $command->mapOptions($interaction, $params, $discord);
 
                     try {
                         return $command->handle($interaction);

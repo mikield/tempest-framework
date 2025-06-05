@@ -27,6 +27,8 @@ final class Ping
     //  The easies way - mark command as SubCommand and every option as subcommand options,
     //  mapped to own commands (by class-name).
     //  Something like: Option(type: SubCommand(command: SubCommandClass::class))
+    //  we can not construct that in __construct method, this method is for constructing the command for running.
+    //  SubCommand registration is more meta configuration that runtime config
 
     #[Option(
         description: 'Provide users name',

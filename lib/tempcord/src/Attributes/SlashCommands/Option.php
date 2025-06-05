@@ -17,6 +17,7 @@ final readonly class Option
     private ReflectionProperty $reflector;
 
     public function __construct(
+        //@todo Add more options for building the Option (from DiscordPHP)
         private string        $description,
         private ?string       $name = null,
         private bool          $required = false,

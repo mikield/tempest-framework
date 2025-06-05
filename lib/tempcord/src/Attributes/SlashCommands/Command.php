@@ -5,6 +5,7 @@ namespace Tempcord\Attributes\SlashCommands;
 use Attribute;
 use Discord\Builders\CommandBuilder;
 use Discord\Discord;
+use Discord\Parts\Interactions\Interaction;
 use Discord\Parts\Permissions\RolePermission;
 use React\Promise\PromiseInterface;
 use RuntimeException;
@@ -12,6 +13,7 @@ use Tempest\Reflection\ClassReflector;
 use function React\Async\await;
 use function Tempest\get;
 use function Tempest\Support\Arr\flat_map;
+use function Tempest\Support\Arr\last;
 use function Tempest\Support\Arr\map_with_keys;
 use function Tempest\Support\str;
 
@@ -103,7 +105,6 @@ final class Command
 
     public function __construct(
         public ?string $command = null,
-        //@todo Require description only if type is set CHAT_INPUT
         public ?string $description = null,
         public ?int    $guildId = null,
         public bool    $isNsfw = false,
@@ -118,12 +119,28 @@ final class Command
     {
         $command = CommandBuilder::new()
             ->setName($this->name)
-            ->setDescription($this->description)
-            ->setGuildId($this->guildId)
             ->setNsfw($this->isNsfw)
-            ->setDefaultMemberPermissions($this->defaultRolePermissions ? ($this->defaultRolePermissions)($discord) : null)
             ->setDmPermission($this->directMessage)
             ->setType($this->type);
+
+
+        if ($this->type === \Discord\Parts\Interactions\Command\Command::CHAT_INPUT) {
+
+            if (!$this->description) {
+                throw new \LogicException("Description for command [$this->name] is required when type=CHAT_INPUT");
+            }
+
+            $command->setDescription($this->description);
+        }
+
+        if ($this->guildId) {
+            $command->setGuildId($this->guildId);
+        }
+
+        if ($this->defaultRolePermissions) {
+            $command->setDefaultMemberPermissions(($this->defaultRolePermissions)($discord));
+        }
+
 
         if (!empty($this->options)) {
             foreach ($this->options as $option) {
@@ -160,15 +177,17 @@ final class Command
         return call_user_func([$this->instance, '__invoke'], $interaction);
     }
 
-    public function mapOptions(\Discord\Helpers\Collection $params, Discord $discord): void
+    public function mapOptions(Interaction $interaction, \Discord\Helpers\Collection $params, Discord $discord): void
     {
-        $params->map(function (\Discord\Parts\Interactions\Request\Option $option) use ($discord) {
+        $params->map(function (\Discord\Parts\Interactions\Request\Option $option) use ($discord, $interaction) {
             if (array_key_exists($option->name, $this->options)) {
 
                 $value = match ($option->type) {
                     \Discord\Parts\Interactions\Command\Option::USER => await($discord->users->fetch($option->value)),
                     \Discord\Parts\Interactions\Command\Option::CHANNEL => $discord->getChannel($option->value),
-                    \Discord\Parts\Interactions\Command\Option::ROLE => throw new RuntimeException('Not implemented'),
+                    \Discord\Parts\Interactions\Command\Option::ROLE => await($interaction->guild->roles->fetch($option->value)),
+                    //@todo need a proxy object that will proxy all props to Channel or User
+                    \Discord\Parts\Interactions\Command\Option::MENTIONABLE => throw new RuntimeException('Not implemented'),
                     default => $option->value,
                 };
 
