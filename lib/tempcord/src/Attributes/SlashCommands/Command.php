@@ -119,8 +119,8 @@ final class Command
     {
         $command = CommandBuilder::new()
             ->setName($this->name)
-            ->setNsfw($this->isNsfw)
-            ->setDmPermission($this->directMessage)
+//            ->setNsfw($this->isNsfw) //@todo Unhandled by DiscordPHP
+//            ->setDmPermission($this->directMessage) //@todo Unhandled by DiscordPHP
             ->setType($this->type);
 
 
