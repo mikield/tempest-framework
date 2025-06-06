@@ -2,9 +2,7 @@
 
 namespace Tempcord;
 
-use Discord\Discord;
-use Discord\Exceptions\IntentException;
-use Tempcord\Registries\CommandRegistry;
+use Ragnarok\Fenrir\Discord;
 use Tempest\Console\Console;
 use Tempest\Container\Container;
 use Tempest\Container\Initializer;
@@ -13,21 +11,18 @@ use Tempest\Log\Logger;
 
 final readonly class TempcordInitializer implements Initializer
 {
-    /**
-     * @throws IntentException
-     */
     #[Singleton]
     public function initialize(Container $container): Tempcord
     {
         $config = $container->get(TempcordConfig::class);
 
         return new Tempcord(
-            discord: new Discord([
-                'token' => $config->token,
-                'intents' => $config->intents,
-                'logger' => $container->get(Logger::class),
-            ]),
-            commandRegistry: $container->get(CommandRegistry::class),
+            discord: new Discord(
+                token: $config->token,
+                logger: $container->get(Logger::class),
+            )->withGateway(
+                intents: $config->intents
+            )->withRest(),
             console: $container->get(Console::class)
         );
     }

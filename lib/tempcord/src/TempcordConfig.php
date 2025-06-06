@@ -2,17 +2,14 @@
 
 namespace Tempcord;
 
-use Discord\WebSockets\Intents;
+use Ragnarok\Fenrir\Bitwise\Bitwise;
 
-final class TempcordConfig
+final readonly class TempcordConfig
 {
     public function __construct(
-        public readonly string $token,
-        public ?int            $intents = null,
+        public string  $token,
+        public Bitwise $intents,
     )
     {
-        if (is_null($this->intents)) {
-            $this->intents = Intents::getDefaultIntents();
-        }
     }
 }

@@ -10,7 +10,9 @@ use function Tempest\get;
 
 final readonly class ConsoleLogChannel implements LogChannel
 {
-    public function __construct(private array $except = [])
+    public function __construct(
+        private array $except = [],
+    )
     {
     }
 
@@ -20,6 +22,7 @@ final readonly class ConsoleLogChannel implements LogChannel
             new ConsoleLogHandler(
                 console: get(Console::class),
                 except: $this->except,
+                level: $level
             ),
         ];
     }

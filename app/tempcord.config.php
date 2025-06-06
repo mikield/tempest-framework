@@ -2,12 +2,17 @@
 
 declare(strict_types=1);
 
-use Discord\WebSockets\Intents;
+use Ragnarok\Fenrir\Bitwise\Bitwise;
+use Ragnarok\Fenrir\Enums\Intent;
 use Tempcord\TempcordConfig;
 
 use function Tempest\env;
 
 return new TempcordConfig(
     token: env('DISCORD_TOKEN'),
-    intents: Intents::getDefaultIntents(),
+    intents: Bitwise::from(
+        Intent::GUILD_MESSAGES,
+        Intent::DIRECT_MESSAGES,
+        Intent::MESSAGE_CONTENT
+    )
 );

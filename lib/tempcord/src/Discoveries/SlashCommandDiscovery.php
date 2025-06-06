@@ -2,8 +2,8 @@
 
 namespace Tempcord\Discoveries;
 
-use Tempcord\Attributes\SlashCommands\Command;
-use Tempcord\Registries\CommandRegistry;
+use Tempcord\Attributes\Command;
+use Tempcord\Registries\CommandsRegistry;
 use Tempest\Discovery\Discovery;
 use Tempest\Discovery\DiscoveryLocation;
 use Tempest\Discovery\IsDiscovery;
@@ -14,7 +14,7 @@ final class SlashCommandDiscovery implements Discovery
     use IsDiscovery;
 
     public function __construct(
-        private readonly CommandRegistry $commandRegistry,
+        private readonly CommandsRegistry $commandRegistry,
     )
     {
     }
@@ -22,7 +22,7 @@ final class SlashCommandDiscovery implements Discovery
     public function discover(DiscoveryLocation $location, ClassReflector $class): void
     {
         foreach ($class->getAttributes(Command::class) as $attribute) {
-            $attribute->setReflector($class);
+            $attribute->reflector = $class;
             $this->discoveryItems->add($location, $attribute);
         }
     }

@@ -2,39 +2,47 @@
 
 namespace Tempcord;
 
-use Discord\Discord;
-use Tempcord\Registries\CommandRegistry;
+use Ragnarok\Fenrir\Constants\Events;
+use Ragnarok\Fenrir\Discord;
+use Ragnarok\Fenrir\Gateway\Events\Ready;
+use Tempcord\Registries\CommandsRegistry;
 use Tempest\Console\Console;
+use function Tempest\get;
 
 final class Tempcord
 {
+    private CommandsRegistry $commandsRegistry;
+
     public bool $booted = false;
 
     public function __construct(
         public readonly Discord  $discord,
-        public CommandRegistry   $commandRegistry,
         private readonly Console $console,
     )
     {
+        //@todo: Maybe move to  Interface
+        $this->commandsRegistry = get(CommandsRegistry::class);
+
+        $this->discord->gateway->events->on(Events::READY, function (Ready $ready) {
+            $this->discord->registerExtension($this->commandsRegistry->extension);
+            $this->booted = true;
+        });
+    }
+
+    public function registerCommands(): void
+    {
+        $this->commandsRegistry->register(
+            console: $this->console,
+            discord: $this->discord,
+        );
     }
 
     public function boot(): void
     {
-        //@todo add ContextMenu handlers and Discovers
+        $this->commandsRegistry->listen(
+            console: $this->console
+        );
 
-        //@todo add Events discovery and handling
-
-        //@todo provide some functionality for Jobs (Tasks)
-
-        //@todo Maybe add some fast HTTP server
-        $this->discord->on('init', function (Discord $discord) {
-            $this->booted = true;
-            $this->commandRegistry->register($this->console, $discord);
-            $this->console->success('Bot started and ready');
-        });
-
-        $this->commandRegistry->listen($this->console, $this->discord);
-
-        $this->discord->run();
+        $this->discord->gateway->open();
     }
 }
