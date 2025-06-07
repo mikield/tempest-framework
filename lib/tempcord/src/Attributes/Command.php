@@ -4,42 +4,20 @@ namespace Tempcord\Attributes;
 
 use Attribute;
 use BackedEnum;
-use Ragnarok\Fenrir\Enums\ApplicationCommandOptionType;
 use Ragnarok\Fenrir\Enums\ApplicationCommandTypes;
 use Ragnarok\Fenrir\Exceptions\Rest\Helpers\Command\InvalidCommandNameException;
-use Ragnarok\Fenrir\Interaction\CommandInteraction;
 use Ragnarok\Fenrir\Rest\Helpers\Command\CommandBuilder;
-use Ragnarok\Fenrir\Rest\Helpers\Command\CommandOptionBuilder;
-use React\Promise\PromiseInterface;
 use RuntimeException;
+use Tempcord\Traits\HasAttributes;
 use Tempest\Reflection\ClassReflector;
-use Tempest\Reflection\MethodReflector;
-use function React\Async\await;
-use function Tempest\get;
+use function Tempest\Support\Arr\dot;
+use function Tempest\Support\Arr\map_iterable;
 use function Tempest\Support\str;
 
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD)]
 final class Command
 {
-    /**
-     * A Singleton instance of the command
-     * @var object|null
-     */
-    private static ?object $_instance = null;
-
-    /**
-     * Computed getter for Singleton instance
-     * @var object
-     */
-    public object $instance {
-        get {
-            if (self::$_instance === null) {
-                self::$_instance = get($this->reflector->getName());
-            }
-
-            return $this::$_instance;
-        }
-    }
+    use HasAttributes;
 
     /**
      * Computed getter for command name
@@ -50,8 +28,8 @@ final class Command
      */
     public string $name {
         get {
-            if ($this->command) {
-                return $this->command instanceof BackedEnum ? $this->command->value : $this->command;
+            if ($this->hasAttribute('name')) {
+                return $this->getAttribute('name') instanceof BackedEnum ? $this->getAttribute('name')->value : $this->getAttribute('name');
             }
 
             $commandName = str($this->reflector->getShortName())
@@ -64,51 +42,96 @@ final class Command
         }
     }
 
-    /**
-     * Options mapper
-     *
-     * Maps all command options using Reflection API
-     *
-     * @var Option[]
-     */
-    public array $options {
+    public array $handlers {
         get {
-            $options = [];
-            foreach ($this->reflector->getProperties() as $property) {
-                if ($property->hasAttribute(Option::class)) {
-                    $option = $property->getAttribute(Option::class);
-
-                    if (!$option) {
-                        continue;
-                    }
-
-                    $option->reflector = $property->getReflection();
-                    $options[$option->name] = $option;
+            $keys[$this->name] = [];
+            foreach ($this->options as $option) {
+                if (in_array(get_class($option), [SubcommandGroup::class, Subcommand::class])) {
+                    $keys[$this->name][$option->name] = $option->key;
+                } else {
+                    $fakeSubcommand = new Subcommand(name: $option->name, description: $option->description);
+                    $fakeSubcommand->reflector = $this->reflector->getMethod('__invoke');
+                    $keys[$this->name] = $fakeSubcommand->key;
                 }
             }
-            return $options;
+            return dot($keys);
         }
     }
 
-    private ?\Closure $defaultRolePermissions {
+    /**
+     * @throws InvalidCommandNameException
+     */
+    public CommandBuilder $build {
         get {
-            return null;
-//            if (!$this->permissions) {
-//                return null;
-//            }
-//            return fn(Discord $discord) => new RolePermission($discord, map_with_keys(
-//                $this->permissions,
-//                fn($permission) => [$permission => true]
-//            ))->__toString();
+            $command = CommandBuilder::new()
+                ->setName($this->name)
+                ->setNsfw($this->isNsfw)
+                ->setDmPermission($this->directMessage)
+                ->setType($this->type);
+
+            if ($this->type === ApplicationCommandTypes::CHAT_INPUT) {
+
+                if (!$this->description) {
+                    throw new \LogicException("Description for command [$this->name] is required when type=CHAT_INPUT");
+                }
+
+                $command->setDescription($this->description);
+            }
+
+
+            foreach ($this->options as $option) {
+                $command->addOption($option->build);
+            }
+
+            return $command;
         }
     }
 
-    public ClassReflector $reflector {
+    /** @var array<SubcommandGroup|Subcommand|Option> */
+    public array $options {
+        get {
+            $options = $this->getAttribute('options');
+
+            if ($this->reflector->hasAttribute(SubcommandGroup::class)) {
+                /** @var SubcommandGroup $subcommandGroup */
+                $subcommandGroup = $this->reflector->getAttribute(SubcommandGroup::class);
+                $subcommandGroup->reflector = $this->reflector;
+                $options[$subcommandGroup->name] = $subcommandGroup;
+            } else {
+                // This is subcommands without a group
+                $fakeSubcommandGroup = new SubcommandGroup(name: 'fake', description: 'fake');
+                $fakeSubcommandGroup->reflector = $this->reflector;
+                foreach ($fakeSubcommandGroup->options as $option) {
+                    $options[$option->name] = $option;
+                }
+
+                if (empty($options)) {
+                    /*
+                     * We assume that there is no Subcommands found and this is an invokable command
+                     * User should provide the __invoke command, so we actually can read the method options (if there are some)
+                     */
+                    if (!$this->reflector->getReflection()->hasMethod('__invoke')) {
+                        throw new RuntimeException('Class [' . $this->reflector->getName() . '] should declare public sub-commands or have an __invoke method');
+                    }
+
+                    $fakeSubcommand = new Subcommand(name: 'fake', description: 'fake');
+                    $fakeSubcommand->reflector = $this->reflector->getMethod('__invoke');
+                    foreach ($fakeSubcommand->options as $option) {
+                        $options[$option->name] = $option;
+                    }
+                }
+            }
+
+            $this->setAttribute('options', $options);
+
+            return $this->getAttribute('options');
+        }
         set {
-            $this->reflector = $value;
+            $this->setAttribute('options', array_merge($this->getAttribute('options') ?? [], $value));
         }
     }
-    private string|null|BackedEnum $command;
+
+    public ClassReflector $reflector;
 
     public function __construct(
         string|BackedEnum|null         $name = null,
@@ -120,139 +143,27 @@ final class Command
         public ApplicationCommandTypes $type = ApplicationCommandTypes::CHAT_INPUT
     )
     {
-        $this->command = $name;
+        $this->setAttribute('name', $name);
     }
 
-    /**
-     * @throws InvalidCommandNameException
-     */
-    public function build(): CommandBuilder
+    public function mergeOptions(Command $command): void
     {
-        $isInGroup = $this->reflector->hasAttribute(SubcommandGroup::class);
-
-        $command = CommandBuilder::new()
-            ->setName($this->name)
-            ->setNsfw($this->isNsfw)
-            ->setDmPermission($this->directMessage)
-            ->setType($this->type);
-
-        if ($this->type === ApplicationCommandTypes::CHAT_INPUT) {
-
-            if (!$this->description) {
-                throw new \LogicException("Description for command [$this->name] is required when type=CHAT_INPUT");
-            }
-
-            $command->setDescription($this->description);
-        }
-
-        if ($this->defaultRolePermissions) {
-//            $command->setDefaultMemberPermissions(($this->defaultRolePermissions)($discord));
-        }
-
-        if ($isInGroup) {
-            /** @var SubcommandGroup $group */
-            $group = $this->reflector->getAttribute(SubcommandGroup::class);
-            $subcommandGroup = CommandOptionBuilder::new()
-                ->setName($group->name)
-                ->setDescription($group->description)
-                ->setType(ApplicationCommandOptionType::SUB_COMMAND_GROUP);
-
-            $command->addOption($subcommandGroup);
-        }
-
-        $subcommands = [];
-        $methods = $this->reflector->getPublicMethods();
-        foreach ($methods as $method) {
-            if ($method->hasAttribute(Subcommand::class)) {
-                $subcommands[] = $this->buildSubcommand($method);
-            }
-        }
-
-        if (!empty($subcommands)) {
-            foreach ($subcommands as $subcommand) {
-                if (isset($subcommandGroup)) {
-                    $subcommandGroup->addOption($subcommand);
-                    continue;
-                }
-
-                $command->addOption($subcommand);
-            }
-
-            return $command;
-        }
-
-        if (!$this->reflector->getReflection()->hasMethod('__invoke')) {
-            throw new RuntimeException('Class [' . $this->reflector->getName() . '] should declare public sub-commands or have an __invoke method');
-        }
-
-        $options = $this->buildOptions($this->reflector->getMethod('__invoke'));
-
-        foreach ($options as $option) {
-            $command->addOption($option);
-        }
-
-
-        return $command;
+        $this->options = $command->options;
     }
 
-    private function buildSubcommand(MethodReflector $method): CommandOptionBuilder
-    {
-        $options = $this->buildOptions($method);
-        /** @var Subcommand $subcommand */
-        $subcommand = $method->getAttribute(Subcommand::class);
 
-        $command = new CommandOptionBuilder()
-            ->setName($subcommand->name)
-            ->setDescription($subcommand->description)
-            ->setType(ApplicationCommandOptionType::SUB_COMMAND);
-
-        foreach ($options as $option) {
-            $command->addOption($option);
-        }
-
-        return $command;
-    }
-
-    private function buildOptions(MethodReflector $method): array
-    {
-        $options = [];
-        foreach ($method->getParameters() as $parameter) {
-            if (!$parameter->hasAttribute(Option::class)) {
-                continue;
-            }
-            /** @var Option $option */
-            $option = $parameter->getAttribute(Option::class);
-            $option->reflector = $parameter->getReflection();
-            $options[] = CommandOptionBuilder::new()
-                ->setName($option->name)
-                ->setDescription($option->description)
-                ->setType($option->type)
-                ->setRequired($option->required)
-                ->setAutoComplete($option->autocomplete !== null);
-        }
-
-        return $options;
-    }
-
-    public function handle(CommandInteraction $interaction): PromiseInterface
-    {
-        //@todo Refactor to new style
-        return call_user_func([$this->instance, '__invoke'], $interaction);
-    }
+    //    public function handle(CommandInteraction $interaction): PromiseInterface
+//    {
+//        //@todo Refactor to new style
+//        return call_user_func([$this->instance, '__invoke'], $interaction);
+//    }
 
 //    public function mapOptions(Interaction $interaction, \Discord\Helpers\Collection $params, Discord $discord): void
 //    {
 //        $params->map(function (\Discord\Parts\Interactions\Request\Option $option) use ($discord, $interaction) {
 //            if (array_key_exists($option->name, $this->options)) {
 //
-//                $value = match ($option->type) {
-//                    \Discord\Parts\Interactions\Command\Option::USER => await($discord->users->fetch($option->value)),
-//                    \Discord\Parts\Interactions\Command\Option::CHANNEL => $discord->getChannel($option->value),
-//                    \Discord\Parts\Interactions\Command\Option::ROLE => await($interaction->guild->roles->fetch($option->value)),
-//                    //@todo need a proxy object that will proxy all props to Channel or User
-//                    \Discord\Parts\Interactions\Command\Option::MENTIONABLE => throw new RuntimeException('Not implemented'),
-//                    default => $option->value,
-//                };
+//
 //
 //                $this->options[$option->name]->set($this->instance, $value);
 //            }

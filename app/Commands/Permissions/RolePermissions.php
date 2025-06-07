@@ -15,12 +15,10 @@ final class RolePermissions
     public function edit(
         #[Option(
             description: 'The role to edit',
-            required: true
         )]
         Role         $role,
         #[Option(
             description: 'The channel permissions to edit. If omitted, the guild permissions will be returned',
-            required: false
         )]
         Channel|null $channel = null
     ): void
@@ -32,12 +30,10 @@ final class RolePermissions
     public function get(
         #[Option(
             description: 'The role to get',
-            required: true
         )]
         Role         $role,
         #[Option(
             description: 'The channel permissions to edit. If omitted, the guild permissions will be returned',
-            required: false
         )]
         Channel|null $channel = null
     ): void

@@ -2,7 +2,7 @@
 
 namespace Tempcord\AutoCompletes;
 
-use Discord\Parts\Interactions\Interaction;
+use Ragnarok\Fenrir\Interaction\CommandInteraction;
 use Tempcord\Contracts\Autocomplete;
 use function Tempest\Support\str;
 
@@ -16,7 +16,7 @@ final readonly class ArrayAutocomplete implements Autocomplete
     {
     }
 
-    public function handle(Interaction $interaction, mixed $value): array
+    public function handle(CommandInteraction $interaction, mixed $value): array
     {
         $result = array_filter($this->items, fn($item) => str($item)->contains($value));
 

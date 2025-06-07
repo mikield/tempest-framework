@@ -22,7 +22,7 @@ final readonly class BotCommand
             description: 'Register bot commands',
             aliases: ['r']
         )]
-        bool $register
+        bool $register = false
     ): void
     {
         if ($register) {
