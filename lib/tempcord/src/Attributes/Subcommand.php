@@ -64,9 +64,11 @@ final class Subcommand
                     'interaction' => $interaction
                 ];
 
+                $subcommandName = $interaction->getSubCommandName() ? str_replace(':', '.', $interaction->getSubCommandName()) : null;
+
                 foreach ($this->options as $option) {
                     $args[$option->name] = $option->mapValue($interaction->getOption(
-                        path: $interaction->getSubCommandName() ? $interaction->getSubCommandName() . '.' . $option->name : $option->name
+                        path: $subcommandName ? $subcommandName . '.' . $option->name : $option->name
                     ), $interaction);
                 }
 
