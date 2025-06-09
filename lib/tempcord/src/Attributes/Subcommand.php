@@ -8,8 +8,11 @@ use InvalidArgumentException;
 use Ragnarok\Fenrir\Enums\ApplicationCommandOptionType;
 use Ragnarok\Fenrir\Interaction\CommandInteraction;
 use Ragnarok\Fenrir\Rest\Helpers\Command\CommandOptionBuilder;
+use React\Promise\PromiseInterface;
 use Tempcord\Traits\HasAttributes;
 use Tempest\Reflection\MethodReflector;
+use function React\Async\async;
+use function React\Async\await;
 use function Tempest\get;
 
 #[Attribute(Attribute::TARGET_METHOD)]
@@ -60,20 +63,28 @@ final class Subcommand
     public \Closure $key {
         get {
             return function (CommandInteraction $interaction) {
-                $args = [
-                    'interaction' => $interaction
-                ];
+
 
                 $subcommandName = $interaction->getSubCommandName() ? str_replace(':', '.', $interaction->getSubCommandName()) : null;
 
-                foreach ($this->options as $option) {
-                    $args[$option->name] = $option->mapValue($interaction->getOption(
-                        path: $subcommandName ? $subcommandName . '.' . $option->name : $option->name
-                    ), $interaction);
-                }
+                $getArgs = async(function () use ($interaction, $subcommandName) {
+                    $args = [
+                        'interaction' => $interaction
+                    ];
+                    foreach ($this->options as $option) {
+                        $args[$option->name] = $option->mapValue($interaction->getOption(
+                            path: $subcommandName ? $subcommandName . '.' . $option->name : $option->name
+                        ), $interaction);
+                    }
+                    return $args;
+                });
 
-                $class = get($this->reflector->getDeclaringClass()->getName());
-                $this->invokeNamedArgs($class, $args);
+
+                $getArgs()->then(function (array $args) {
+                    $class = get($this->reflector->getDeclaringClass()->getName());
+                    $this->invokeNamedArgs($class, $args);
+                });
+
             };
         }
     }

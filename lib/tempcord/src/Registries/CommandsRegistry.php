@@ -2,20 +2,21 @@
 
 namespace Tempcord\Registries;
 
-use Generator;
-use Ragnarok\Fenrir\Command\AllCommandExtension;
 use Ragnarok\Fenrir\Discord;
-use Ragnarok\Fenrir\Enums\ApplicationCommandOptionType;
-use Ragnarok\Fenrir\Exceptions\Rest\Helpers\Command\InvalidCommandNameException;
+use Ragnarok\Fenrir\Enums\InteractionCallbackType;
 use Ragnarok\Fenrir\Interaction\CommandInteraction;
 use Ragnarok\Fenrir\Parts\ApplicationCommandInteractionDataOptionStructure;
-use Ragnarok\Fenrir\Rest\Helpers\Command\CommandBuilder;
-use Ragnarok\Fenrir\Rest\Helpers\Command\CommandOptionBuilder;
+use Ragnarok\Fenrir\Parts\ApplicationCommandOptionChoice;
 use Tempcord\Attributes\Command;
+use Tempcord\Attributes\Option;
+use Tempcord\Attributes\Subcommand;
+use Tempcord\Attributes\SubcommandGroup;
+use Tempcord\Contracts\Autocomplete;
+use Tempcord\Extensions\AllCommandExtension;
+use Tempcord\Extensions\InteractionCallbackBuilder;
 use Tempest\Console\Console;
 use Tempest\Container\Singleton;
 use Throwable;
-use function Freezemage\ArrayUtils\find;
 use function React\Async\await;
 use function Tempest\Support\Arr\map_iterable;
 
@@ -75,91 +76,97 @@ final class CommandsRegistry
         }
     }
 
-    private function drillName(array $options): Generator
-    {
-        /** @var CommandOptionBuilder|null $subCommand */
-        $subCommand = find($options, function (CommandOptionBuilder $option) {
-            return in_array($option->getType(), [
-                ApplicationCommandOptionType::SUB_COMMAND,
-                ApplicationCommandOptionType::SUB_COMMAND_GROUP,
-            ], true);
-        });
-
-        if (!is_null($subCommand)) {
-            yield $subCommand->getName();
-
-            yield from $this->drillName($subCommand->getOptions() ?? []);
-        }
-    }
-
-
     public function listen(Console $console): void
     {
 
         foreach ($this->commands as $command) {
             foreach ($command->handlers as $key => $handler) {
-                $this->extension->on($key, function (CommandInteraction $interaction) use ($console, $handler) {
-                    try {
-                        $handler($interaction);
-                    } catch (\Throwable $e) {
-                        $console->error($e->getMessage());
+                $this->extension->bind(
+                    command: $key,
+                    listener: function (CommandInteraction $interaction) use ($console, $handler) {
+                        try {
+                            $handler($interaction);
+                        } catch (\Throwable $e) {
+                            $console->error($e->getMessage());
+                        }
+                    },
+                    autocomplete: function (CommandInteraction $interaction) use ($command) {
+                        [$option, $interactionOption] = $this->resolveFocusedAndParam($interaction->interaction->data->options, $command);
+
+                        if (!$option->autocomplete instanceof Autocomplete) {
+                            return null;
+                        }
+
+                        $value = $option->autocomplete->handle($interaction, $interactionOption->value);
+
+                        $choices = is_array($value) ? $value : [$value];
+
+                        $choices = array_slice($choices, 0, 25);
+
+                        $choices = array_map(function ($choice, $key) use ($choices) {
+                            if ($choice instanceof ApplicationCommandOptionChoice) {
+                                return $choice;
+                            }
+
+                            if (array_is_list($choices)) {
+                                $key = $choice;
+                            }
+
+                            if (is_int($key)) {
+                                $key = (string)$key;
+                            }
+
+                            $applicationCommandOptionChoice = new ApplicationCommandOptionChoice();
+                            $applicationCommandOptionChoice->name = $key;
+                            $applicationCommandOptionChoice->value = $choice;
+
+                            return $applicationCommandOptionChoice;
+                        }, $value, array_keys($value));
+
+                        $interaction->createInteractionResponse(
+                            InteractionCallbackBuilder::new()
+                                ->setType(InteractionCallbackType::APPLICATION_COMMAND_AUTOCOMPLETE_RESULT)
+                                ->setChoices($choices)
+                        );
                     }
-                });
+                );
                 $console->success('Command "' . $key . '" listened.');
             }
         }
+    }
 
+    /**
+     * @param array $interactionOptions — array of ApplicationCommandInteractionDataOptionStructure
+     * @param Command|SubcommandGroup|Subcommand $definition — Tempcord definition
+     * @return array{ Option, ApplicationCommandInteractionDataOptionStructure }|null
+     */
+    private function resolveFocusedAndParam(array $interactionOptions, Command|SubcommandGroup|Subcommand $definition): ?array
+    {
+        /** @var ApplicationCommandInteractionDataOptionStructure $option */
+        foreach ($interactionOptions as $option) {
+            $type = $option->type->value;
+            $name = $option->name;
 
-//        foreach ($this->commands as $command) {
-//            $discord->listenCommand(
-//                $command->name,
-//                function (Interaction $interaction, Collection $params) use ($command, $console, $discord) {
-//                    $command->mapOptions($interaction, $params, $discord);
-//
-//                    try {
-//                        return $command->handle($interaction);
-//                    } catch (Throwable $e) {
-//
-//                    }
-//
-//                    return null;
-//                },
-//                function (Interaction $interaction) use ($command, $discord) {
-//                    foreach ($interaction->data->options as $option) {
-//                        $autocomplete = $command->options[$option->name]->getAutocomplete();
-//
-//                        if (null === $autocomplete) {
-//                            continue;
-//                        }
-//
-//                        $value = $autocomplete->handle($interaction, $option->value);
-//
-//                        $choices = is_array($value) ? $value : [$value];
-//
-//                        $choices = array_slice($choices, 0, 25);
-//
-//                        if ($option->focused && $value) {
-//                            return array_map(function ($choice, $key) use ($discord, $choices) {
-//                                if ($choice instanceof Choice) {
-//                                    return $choice;
-//                                }
-//
-//                                if (array_is_list($choices)) {
-//                                    $key = $choice;
-//                                }
-//
-//                                if (is_int($key)) {
-//                                    $key = (string)$key;
-//                                }
-//
-//
-//                                return Choice::new($discord, $choice, $key);
-//                            }, $value, array_keys($value));
-//                        }
-//                    }
-//                }
-//            );
-//        }
+            // If SUB_COMMAND_GROUP or SUB_COMMAND, go deeper
+            if (in_array($type, [1, 2], true)) {
+                // $definition->options[$name] should be the nested command/group
+                $nextDefinition = $definition->options[$name] ?? null;
+
+                if ($nextDefinition && !empty($option->options)) {
+                    $result = $this->resolveFocusedAndParam($option->options, $nextDefinition);
+                    if ($result !== null) {
+                        return $result;
+                    }
+                }
+            } else if ((isset($option->focused) && $option->focused === true) && $definition->options[$name]) {
+                return [
+                    $definition->options[$name],
+                    $option
+                ];
+            }
+        }
+
+        return null;
     }
 
 }

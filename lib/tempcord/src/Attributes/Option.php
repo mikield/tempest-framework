@@ -11,7 +11,6 @@ use Ragnarok\Fenrir\Parts\Channel;
 use Ragnarok\Fenrir\Parts\Role;
 use Ragnarok\Fenrir\Parts\User;
 use Ragnarok\Fenrir\Rest\Helpers\Command\CommandOptionBuilder;
-use ReflectionNamedType;
 use RuntimeException;
 use Tempcord\Contracts\Autocomplete;
 use Tempcord\Tempcord;
@@ -90,11 +89,6 @@ final class Option
         $this->setAttribute('name', $name);
     }
 
-    public function set(object $class, float|bool|int|string|null|User|Channel $value): void
-    {
-        $this->reflector->setRawValue($class, $value);
-    }
-
     /**
      * @param ApplicationCommandInteractionDataOptionStructure|null $option
      * @param CommandInteraction $interaction
@@ -108,6 +102,11 @@ final class Option
         }
 
         $tempcord = get(Tempcord::class);
+
+
+        if ($option->type === ApplicationCommandOptionType::USER) {
+            await($tempcord->discord->rest->user->get($option->value));
+        }
 
         return match ($option->type) {
             ApplicationCommandOptionType::USER => await($tempcord->discord->rest->user->get($option->value)),

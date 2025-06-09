@@ -9,10 +9,12 @@ use Ragnarok\Fenrir\Interaction\CommandInteraction;
 use Ragnarok\Fenrir\Interaction\Helpers\InteractionCallbackBuilder;
 use Ragnarok\Fenrir\Parts\Channel;
 use Ragnarok\Fenrir\Parts\User;
-use App\DTO\{Commands};
-use Tempcord\Attributes\{Command, Subcommand, Option};
+use App\DTO\{Commands, SubcommandGroups};
+use Tempcord\Attributes\{Command, Subcommand, Option, SubcommandGroup};
+use Tempcord\AutoCompletes\ArrayAutocomplete;
 
 #[Command(name: Commands::PERMISSIONS, description: 'Get or edit permissions for a user or a role')]
+#[SubcommandGroup(name: SubcommandGroups::USER, description: 'Get or edit permissions for a role')]
 final class UserPermissions
 {
     #[Subcommand(name: 'edit', description: 'Edit permissions for a user')]
@@ -22,6 +24,13 @@ final class UserPermissions
             description: 'The user to edit',
         )]
         User               $user,
+        #[Option(
+            description: 'This is a test',
+            autocomplete: new ArrayAutocomplete([
+                'Miki', 'Miku'
+            ])
+        )]
+        string $test,
         #[Option(
             description: 'The channel permissions to edit. If omitted, the guild permissions will be returned',
         )]

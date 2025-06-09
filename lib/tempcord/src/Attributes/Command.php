@@ -150,25 +150,4 @@ final class Command
     {
         $this->options = $command->options;
     }
-
-
-    //    public function handle(CommandInteraction $interaction): PromiseInterface
-//    {
-//        //@todo Refactor to new style
-//        return call_user_func([$this->instance, '__invoke'], $interaction);
-//    }
-
-//    public function mapOptions(Interaction $interaction, \Discord\Helpers\Collection $params, Discord $discord): void
-//    {
-//        $params->map(function (\Discord\Parts\Interactions\Request\Option $option) use ($discord, $interaction) {
-//            if (array_key_exists($option->name, $this->options)) {
-//
-//
-//
-//                $this->options[$option->name]->set($this->instance, $value);
-//            }
-//        });
-//    }
-
-
 }
