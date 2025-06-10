@@ -6,12 +6,14 @@ use Ragnarok\Fenrir\Constants\Events;
 use Ragnarok\Fenrir\Discord;
 use Ragnarok\Fenrir\Gateway\Events\Ready;
 use Tempcord\Registries\CommandsRegistry;
+use Tempcord\Registries\EventsRegistry;
 use Tempest\Console\Console;
 use function Tempest\get;
 
 final class Tempcord
 {
     private CommandsRegistry $commandsRegistry;
+    private EventsRegistry $eventsRegistry;
 
     public bool $booted = false;
 
@@ -22,6 +24,7 @@ final class Tempcord
     {
         //@todo: Maybe move to  Interface
         $this->commandsRegistry = get(CommandsRegistry::class);
+        $this->eventsRegistry = get(EventsRegistry::class);
 
         $this->discord->gateway->events->on(Events::READY, function (Ready $ready) {
             $this->discord->registerExtension($this->commandsRegistry->extension);
@@ -40,6 +43,10 @@ final class Tempcord
     public function boot(): void
     {
         $this->commandsRegistry->listen(
+            console: $this->console
+        );
+
+        $this->eventsRegistry->listen(
             console: $this->console
         );
 

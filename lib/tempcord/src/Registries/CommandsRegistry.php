@@ -78,7 +78,7 @@ final class CommandsRegistry
 
     public function listen(Console $console): void
     {
-
+        $console->header('Starting Commands');
         foreach ($this->commands as $command) {
             foreach ($command->handlers as $key => $handler) {
                 $this->extension->bind(
